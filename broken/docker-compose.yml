@@ -1,0 +1,15 @@
+# Run this from the broken/ folder. The API cannot find the database. Why?
+services:
+  api:
+    build:
+      context: ../api
+      dockerfile: ../broken/Dockerfile
+    environment:
+      DB_HOST: localhost
+      REDIS_HOST: localhost
+    ports:
+      - "5000:5000"
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: SuperSecret123

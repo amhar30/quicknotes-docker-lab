@@ -1,0 +1,43 @@
+# =====================================================================
+# TASK 3 — Wire the 4 services together with Docker Compose
+#   frontend (nginx)  ->  api (flask)  ->  db (postgres) + redis
+# Read the assignment sheet for the full requirement list.
+# =====================================================================
+name: quicknotes
+
+services:
+  frontend:
+    build: ./frontend
+    # TODO: publish container port 80 on host port 8080
+    # TODO: start only after the api is HEALTHY
+    # TODO: attach to the "public" network only
+
+  api:
+    build: ./api
+    # TODO: tag the image as  <your-dockerhub-user>/quicknotes-api:<version>
+    #       using variables from .env  (${DOCKERHUB_USER}, ${APP_VERSION})
+    # TODO: environment: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, REDIS_HOST, APP_VERSION
+    #       -> values must come from .env, NOT be hard-coded here
+    # TODO: start only after db AND redis are healthy
+    # TODO: attach to BOTH public and private networks
+    # TODO: limit to 0.5 CPU and 256M memory
+    # TODO: restart policy: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    # TODO: POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD from .env
+    # TODO: named volume "pgdata" mounted at /var/lib/postgresql/data
+    # TODO: healthcheck using pg_isready
+    # TODO: private network only
+
+  redis:
+    image: redis:7-alpine
+    # TODO: enable persistence:  redis-server --appendonly yes
+    # TODO: named volume "redisdata" mounted at /data
+    # TODO: healthcheck using redis-cli ping
+    # TODO: private network only
+
+# TODO: declare the named volumes
+
+# TODO: declare two networks: "public" and "private".
+#       "private" must be internal (no internet access for db/redis).
