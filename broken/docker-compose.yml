@@ -1,15 +1,59 @@
-# Run this from the broken/ folder. The API cannot find the database. Why?
 services:
   api:
     build:
       context: ../api
       dockerfile: ../broken/Dockerfile
+
     environment:
-      DB_HOST: localhost
-      REDIS_HOST: localhost
-    ports:
-      - "5000:5000"
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      APP_VERSION: ${APP_VERSION}
+
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    networks:
+      - private
+
+    restart: unless-stopped
+
   db:
     image: postgres:16-alpine
+
     environment:
-      POSTGRES_PASSWORD: SuperSecret123
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    networks:
+      - private
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+    command: redis-server --appendonly yes
+
+    networks:
+      - private
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  private:
+    internal: true

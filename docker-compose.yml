@@ -6,38 +6,92 @@
 name: quicknotes
 
 services:
-  frontend:
-    build: ./frontend
-    # TODO: publish container port 80 on host port 8080
-    # TODO: start only after the api is HEALTHY
-    # TODO: attach to the "public" network only
+    frontend:
+      build: ./frontend
+      image: ${DOCKERHUB_USER}/quicknotes-frontend:${APP_VERSION}
 
-  api:
-    build: ./api
-    # TODO: tag the image as  <your-dockerhub-user>/quicknotes-api:<version>
-    #       using variables from .env  (${DOCKERHUB_USER}, ${APP_VERSION})
-    # TODO: environment: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, REDIS_HOST, APP_VERSION
-    #       -> values must come from .env, NOT be hard-coded here
-    # TODO: start only after db AND redis are healthy
-    # TODO: attach to BOTH public and private networks
-    # TODO: limit to 0.5 CPU and 256M memory
-    # TODO: restart policy: unless-stopped
+      ports:
+        - "8080:80"
 
-  db:
-    image: postgres:16-alpine
-    # TODO: POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD from .env
-    # TODO: named volume "pgdata" mounted at /var/lib/postgresql/data
-    # TODO: healthcheck using pg_isready
-    # TODO: private network only
+      depends_on:
+        api:
+          condition: service_healthy
 
-  redis:
-    image: redis:7-alpine
-    # TODO: enable persistence:  redis-server --appendonly yes
-    # TODO: named volume "redisdata" mounted at /data
-    # TODO: healthcheck using redis-cli ping
-    # TODO: private network only
+      networks:
+        - public
 
-# TODO: declare the named volumes
+    api:
+      build: ./api
+      image: ${DOCKERHUB_USER}/quicknotes-api:${APP_VERSION}
 
-# TODO: declare two networks: "public" and "private".
-#       "private" must be internal (no internet access for db/redis).
+      environment:
+        DB_HOST: db
+        DB_NAME: ${DB_NAME}
+        DB_USER: ${DB_USER}
+        DB_PASSWORD: ${DB_PASSWORD}
+        REDIS_HOST: redis
+        APP_VERSION: ${APP_VERSION}
+
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+
+      networks:
+        - public
+        - private
+
+      deploy:
+        resources:
+          limits:
+            cpus: "0.5"
+            memory: 256M
+
+      restart: unless-stopped
+
+    db:
+      image: postgres:16-alpine
+
+      environment:
+        POSTGRES_DB: ${DB_NAME}
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+        interval: 5s
+        timeout: 3s
+        retries: 10
+
+      networks:
+        - private
+
+    redis:
+      image: redis:7-alpine
+
+      command: redis-server --appendonly yes
+
+      volumes:
+        - redisdata:/data
+
+      healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 5s
+        timeout: 3s
+        retries: 10
+
+      networks:
+        - private
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  public:
+  private:
+    internal: true

@@ -1,24 +1,29 @@
-# =====================================================================
-# TASK 1 — Containerise the QuickNotes API
-# Replace every TODO. Delete these comments when you are done.
-# =====================================================================
+FROM python:3.12-slim AS builder
 
-# TODO 1: Start FROM a small, PINNED Python 3.12 image (hint: "-slim").
-#         Never use ":latest" — why? Write the answer in ANSWERS.md.
+WORKDIR /build
 
-# TODO 2: Set the working directory to /app
+COPY requirements.txt .
 
-# TODO 3: Copy ONLY requirements.txt first, then pip install it
-#         (use --no-cache-dir). Why does the ORDER matter for build speed?
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-# TODO 4: Create a non-root user (e.g. "appuser") and copy app.py
-#         so it is owned by that user. Switch to it with USER.
 
-# TODO 5: Document the port the app listens on (5000).
+FROM python:3.12-slim
 
-# TODO 6: Add a HEALTHCHECK that calls http://localhost:5000/api/health
-#         Hint: curl is NOT installed in slim images. Python is...
+WORKDIR /app
 
-# TODO 7: Start the app with gunicorn (NOT "python app.py"):
-#         gunicorn --bind 0.0.0.0:5000 --workers 2 --preload app:app
-#         Use the exec (JSON array) form of CMD.
+COPY --from=builder /wheels /wheels
+
+RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+
+RUN useradd --create-home appuser
+
+COPY --chown=appuser:appuser app.py .
+
+USER appuser
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--preload", "app:app"]

@@ -1,11 +1,10 @@
-# =====================================================================
-# TASK 2 — Containerise the frontend with Nginx
-# =====================================================================
+FROM nginx:1.27-alpine
 
-# TODO 1: Start FROM a pinned nginx alpine image (e.g. nginx:1.27-alpine)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# TODO 2: Copy nginx.conf to /etc/nginx/conf.d/default.conf
+COPY index.html /usr/share/nginx/html/
 
-# TODO 3: Copy index.html to /usr/share/nginx/html/
+EXPOSE 80
 
-# TODO 4: EXPOSE port 80 and add a HEALTHCHECK (hint: wget is available in alpine)
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost/
